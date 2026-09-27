@@ -4,6 +4,10 @@
 > values, then turns the structured results into a plain-language summary and
 > practical Indian diet guidance.
 
+## 🚀 Live Demo
+
+[Try the Blood Work Analyzer](https://blood-work-analyzer-ajxxhudcgayqhcsinv7g9u.streamlit.app/)
+
 The core design choice is separation of concerns. Instead of asking one model
 call to parse numbers and write advice at the same time, Stage 1 creates a
 structured interpretation of the report and Stage 2 operates on that cleaner
