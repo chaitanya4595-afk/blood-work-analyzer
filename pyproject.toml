@@ -2,7 +2,7 @@
 name = "blood-work-analyzer"
 version = "0.1.0"
 description = "Two-stage LLM pipeline for structured blood-work extraction and plain-language interpretation."
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12"
 dependencies = [
     "streamlit>=1.57",
     "langchain-core>=1.6",
