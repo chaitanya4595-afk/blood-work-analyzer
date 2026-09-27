@@ -1,68 +1,133 @@
 # Architecture
 
-## Overview
+## Design goal
 
-Blood Work Analyzer deliberately separates factual extraction from narrative
-interpretation. This avoids asking one prompt to simultaneously parse every
-number, classify it, explain it, and create dietary guidance.
+Blood Work Analyzer is a staged LLM pipeline built to separate **information extraction** from **interpretation**.
 
-```text
-Blood-work report
-       │
-       ▼
-Stage 1: extraction prompt
-       │
-       ▼
-test value + reference range + HIGH/LOW/NORMAL
-       │
-       ▼
-Stage 2: interpretation prompt
-       │
-       ├────────► plain-language health summary
-       │
-       └────────► practical Indian diet guidance
+The project deliberately avoids one large prompt that must parse the report, classify every value, explain the result, and generate diet guidance in a single step. Instead, the system creates an intermediate representation first, then passes that output into a second model call.
+
+```mermaid
+flowchart LR
+    U[User] --> UI[Streamlit]
+    UI --> R[Raw blood-work text]
+    R --> E[Stage 1\nExtraction prompt]
+    E --> M1[Gemma via Gemini API]
+    M1 --> S[Intermediate text\nvalue + reference + status]
+    S --> I[Stage 2\nInterpretation prompt]
+    I --> M2[Gemma via Gemini API]
+    M2 --> H[Plain-language summary]
+    M2 --> D[Diet guidance]
 ```
 
-## Components
+## Component responsibilities
 
-### Streamlit application
+| Component | Responsibility | Does not own |
+| --- | --- | --- |
+| `app.py` | Input, rendering, session state, user-facing errors | Prompt logic |
+| `prompts.py` | Stage 1 and Stage 2 model contracts | Model invocation |
+| `service.py` | Two-stage orchestration and response splitting | UI state |
+| Gemini / Gemma | Extraction and interpretation | Application validation |
+| `sample_data/` | Demonstration input | Production document ingestion |
+| `tests/` | Pipeline-contract verification with fake models | Clinical accuracy measurement |
 
-`app.py` provides an editable input report and independent output panels for the
-summary and diet plan. A sample report is loaded from `sample_data/`.
+## Stage 1: extraction and classification
 
-### Prompt layer
+Stage 1 receives the raw report text and asks the model to return each test value in a consistent line-oriented format:
 
-`src/blood_work_analyzer/prompts.py` owns the extraction and interpretation
-contracts. The second stage receives the first stage's structured output rather
-than the original raw report.
+```text
+Test Name: value | Status: HIGH/LOW/NORMAL | Reference: range
+```
 
-### Service layer
+The prompt asks the model to use the reference ranges included in the report itself.
 
-`src/blood_work_analyzer/service.py` orchestrates the two model calls. It
-validates non-empty input and requires the expected separator before returning
-the two user-facing outputs.
+This is still an LLM-generated intermediate representation. The current prototype does **not** independently parse units or deterministically recompute every status. That limitation is intentional to keep the project focused on staged orchestration, and it is also the clearest next area for hardening.
 
-### Model provider
+## Stage 2: interpretation
 
-Gemma is accessed through the Gemini API using LangChain's Google GenAI
-integration. Credentials remain outside the repository.
+Stage 2 receives the Stage 1 output rather than the original report.
+
+It produces two user-facing sections:
+
+1. a short plain-language summary
+2. practical Indian diet guidance
+
+The response contract includes a known separator token so the service can split the model output into two independently rendered UI panels.
+
+A typed structured-output schema would be stronger than a separator token, but the current approach makes the pipeline boundary visible and easy to test.
+
+## Why two model calls?
+
+The staged design creates several useful engineering properties:
+
+- each prompt has a narrower responsibility
+- intermediate output can be inspected independently
+- failures can be isolated to one stage
+- the second prompt receives cleaner context
+- the service can be unit-tested with an injected fake model
+
+The trade-off is additional latency and model usage compared with a single-call design.
 
 ## Failure handling
 
-- Blank reports are rejected before any API call.
-- Missing or invalid credentials surface as application errors.
-- A malformed second-stage response without the expected separator is rejected
-  instead of silently rendering an incomplete result.
-- The Streamlit layer catches failures and displays an error rather than losing
-  the page state.
+| Failure | Current behavior | Production hardening |
+| --- | --- | --- |
+| Empty report | Rejected before any model call | Keep deterministic validation |
+| Missing/invalid API key | Provider error reaches UI error handling | Startup configuration check |
+| Stage 2 omits separator | Service raises `ValueError` | Typed structured response schema |
+| Stage 1 extracts a value incorrectly | Stage 2 inherits the mistake | Deterministic parser + schema validation |
+| Units/reference ranges vary | Model interprets raw text | Normalize units and ranges in code |
+| Model/provider latency | User waits during both stages | Timeouts, telemetry, faster model/fallback |
 
-## Testing boundary
+## Testing strategy
 
-The service accepts an injected LLM. Tests use a fake model, so the pipeline
-contract can be verified without external API calls or credits.
+The model dependency is injectable. Tests use fake LLM responses, so the orchestration contract can be verified without API keys, external requests, or model cost.
 
-## Scope
+Current tests verify:
 
-This is a technical demonstration of staged LLM orchestration. It does not
-provide medical diagnosis and should not be used for consequential medical
-decisions.
+- blank input is rejected before model execution
+- a successful run uses two model calls
+- summary and diet output are split correctly
+- malformed Stage 2 output without the expected separator is rejected
+
+GitHub Actions runs the suite on pushes and pull requests.
+
+## What the tests do not prove
+
+The test suite verifies **software behavior**, not medical correctness.
+
+It does not currently measure:
+
+- extraction accuracy across real laboratory formats
+- status classification accuracy
+- unit conversion quality
+- hallucination rate
+- clinical usefulness
+- diet-guidance quality
+
+Those would require a labeled evaluation dataset and domain review.
+
+## Production evolution
+
+The next architecture I would move toward is:
+
+```text
+PDF / report upload
+      ↓
+deterministic document parser
+      ↓
+typed lab-value schema
+      ↓
+unit + reference-range validation
+      ↓
+LLM explanation layer
+      ↓
+quality checks / citations
+      ↓
+user-facing summary
+```
+
+That would move factual parsing and status calculation out of the generative model while keeping the LLM focused on explanation.
+
+## Scope and safety
+
+This repository demonstrates staged LLM application architecture, dependency injection, failure handling, and testability. It is not clinically validated and should not be used for consequential medical decisions.
