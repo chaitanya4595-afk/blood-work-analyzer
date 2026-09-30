@@ -6,7 +6,7 @@ I built this to explore a two-stage LLM workflow using sample blood reports. The
 
 I chose separate stages so I could inspect the extraction step, keep the prompts focused, and test the orchestration independently of a live model. This is an educational project, with no clinical validation.
 
-[Open the app](https://blood-work-analyzer-ajxxhudcgayqhcsinv7g9u.streamlit.app/) · [Architecture](ARCHITECTURE.md) · [Tests](tests/)
+[Open the app](https://blood-work-analyzer-hcsq3acoxxkg3oedr5sxke.streamlit.app/) · [Architecture](ARCHITECTURE.md) · [Tests](tests/)
 
 ## Try it
 
