@@ -62,3 +62,14 @@ def test_empty_report_is_rejected_before_model_call():
 def test_malformed_second_stage_output_is_rejected():
     with pytest.raises(ValueError, match="expected section separator"):
         analyze_blood_work("LDL: 162", llm=MalformedSecondStageLLM())
+
+
+def test_empty_extraction_does_not_start_interpretation():
+    class EmptyLLM(FakeLLM):
+        def invoke(self, _prompt):
+            self.calls += 1
+            return FakeResponse("")
+    llm = EmptyLLM()
+    with pytest.raises(ValueError, match="no extracted values"):
+        analyze_blood_work("Synthetic test values", llm=llm)
+    assert llm.calls == 1

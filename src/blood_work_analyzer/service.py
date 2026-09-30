@@ -1,10 +1,15 @@
+import os
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .prompts import DIET_PROMPT, EXTRACTION_PROMPT, SECTION_SEPARATOR
 
 
 def build_llm():
-    return ChatGoogleGenerativeAI(model="gemma-4-31b-it")
+    return ChatGoogleGenerativeAI(
+        model=os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"),
+        timeout=30, max_retries=0, max_output_tokens=2048,
+    )
 
 
 def analyze_blood_work(blood_report: str, llm=None) -> tuple[str, str]:
@@ -17,6 +22,9 @@ def analyze_blood_work(blood_report: str, llm=None) -> tuple[str, str]:
     extracted = llm.invoke(
         EXTRACTION_PROMPT.format(blood_report=blood_report)
     ).text
+
+    if not extracted or not extracted.strip():
+        raise ValueError("Model returned no extracted values.")
 
     response = llm.invoke(
         DIET_PROMPT.format(

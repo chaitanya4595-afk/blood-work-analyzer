@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import streamlit as st
@@ -100,13 +101,16 @@ with left:
     )
 
 if analyze:
+    st.session_state.pop("summary", None)
+    st.session_state.pop("diet_plan", None)
     try:
         with st.spinner("Running Stage 1 extraction, then Stage 2 interpretation…"):
             summary, diet_plan = analyze_blood_work(blood_report)
             st.session_state["summary"] = summary
             st.session_state["diet_plan"] = diet_plan
         st.success("Analysis complete.")
-    except Exception:
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Report analysis failed (%s)", type(exc).__name__)
         st.error(
             "The analysis could not be completed. Check the report format or try again later."
         )

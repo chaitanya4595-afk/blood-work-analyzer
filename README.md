@@ -65,3 +65,5 @@ uv run pytest
 I test input validation, the two-stage call sequence, splitting the final response, and malformed output handling. [GitHub Actions](https://github.com/kcrokkam/blood-work-analyzer/actions/workflows/tests.yml) runs the tests without live Gemini calls.
 
 These tests verify application behavior, not medical or extraction accuracy. I have not built a labeled evaluation set or deterministic unit/reference-range validation. Those, together with typed outputs and PDF parsing, are the next improvements I would make.
+
+The default model is `gemini-3.1-flash-lite`. Each model call has a 30-second request timeout, no automatic retries, and a 2,048-token output limit. Set `GEMINI_MODEL` to use another model available to your account. A failed new analysis clears the previous result.
