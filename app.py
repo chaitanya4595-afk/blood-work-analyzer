@@ -4,6 +4,7 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
+from blood_work_analyzer.errors import describe_failure
 from blood_work_analyzer.service import analyze_blood_work
 
 ROOT = Path(__file__).parent
@@ -110,9 +111,13 @@ if analyze:
             st.session_state["diet_plan"] = diet_plan
         st.success("Analysis complete.")
     except Exception as exc:
-        logging.getLogger(__name__).warning("Report analysis failed (%s)", type(exc).__name__)
+        failure = describe_failure(exc)
+        logging.getLogger(__name__).warning(
+            "Report analysis failed: category=%s http_status=%s error_type=%s",
+            failure.category, failure.status_code, type(exc).__name__,
+        )
         st.error(
-            "The analysis could not be completed. Check the report format or try again later."
+            "The analysis could not be completed. " + failure.message
         )
 
 with right:

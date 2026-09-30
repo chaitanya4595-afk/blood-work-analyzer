@@ -73,3 +73,55 @@ def test_empty_extraction_does_not_start_interpretation():
     with pytest.raises(ValueError, match="no extracted values"):
         analyze_blood_work("Synthetic test values", llm=llm)
     assert llm.calls == 1
+
+
+def test_server_failure_retries_only_interpretation(monkeypatch, caplog):
+    from unittest.mock import Mock
+    from langchain_google_genai.chat_models import GoogleAPIError
+    from blood_work_analyzer import service
+
+    failure = GoogleAPIError(503, {"error": {"message": "PRIVATE_REPORT SECRET_KEY", "status": "UNAVAILABLE"}})
+    llm = Mock()
+    llm.invoke.side_effect = [FakeResponse("Extracted synthetic values"), failure, FakeResponse("Summary===DIET PLAN===Diet")]
+    sleep = Mock()
+    monkeypatch.setattr(service.time, "sleep", sleep)
+    assert analyze_blood_work("Synthetic input", llm=llm) == ("Summary", "Diet")
+    assert llm.invoke.call_count == 3
+    assert llm.invoke.call_args_list[1] == llm.invoke.call_args_list[2]
+    sleep.assert_called_once_with(1)
+    assert "http_status=503" in caplog.text
+    assert "PRIVATE_REPORT" not in caplog.text
+    assert "SECRET_KEY" not in caplog.text
+
+
+@pytest.mark.parametrize("code", [400, 401, 403, 404, 429])
+def test_client_failure_is_not_retried(code, monkeypatch):
+    from unittest.mock import Mock
+    from google.genai.errors import ClientError
+    from blood_work_analyzer import service
+
+    failure = RuntimeError("Wrapped client error")
+    failure.__cause__ = ClientError(code, {"error": {"message": "private details"}})
+    llm = Mock()
+    llm.invoke.side_effect = failure
+    sleep = Mock()
+    monkeypatch.setattr(service.time, "sleep", sleep)
+    with pytest.raises(RuntimeError):
+        analyze_blood_work("Synthetic input", llm=llm)
+    assert llm.invoke.call_count == 1
+    sleep.assert_not_called()
+
+
+def test_timeout_retry_is_bounded(monkeypatch):
+    from unittest.mock import Mock
+    import httpx
+    from blood_work_analyzer import service
+
+    llm = Mock()
+    llm.invoke.side_effect = httpx.ReadTimeout("private request contents")
+    sleep = Mock()
+    monkeypatch.setattr(service.time, "sleep", sleep)
+    with pytest.raises(httpx.ReadTimeout):
+        analyze_blood_work("Synthetic input", llm=llm)
+    assert llm.invoke.call_count == 2
+    sleep.assert_called_once_with(1)
