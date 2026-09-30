@@ -1,7 +1,9 @@
 # Blood Work Analyzer
 
+[Profile](https://github.com/kcrokkam) · [All projects](https://github.com/kcrokkam/agentic-ai-projects)
+
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://blood-work-analyzer-ajxxhudcgayqhcsinv7g9u.streamlit.app/)
-[![Tests](https://github.com/chaitanya4595-afk/blood-work-analyzer/actions/workflows/tests.yml/badge.svg)](https://github.com/chaitanya4595-afk/blood-work-analyzer/actions/workflows/tests.yml)
+[![Tests](https://github.com/kcrokkam/blood-work-analyzer/actions/workflows/tests.yml/badge.svg)](https://github.com/kcrokkam/blood-work-analyzer/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![LangChain](https://img.shields.io/badge/LangChain-LLM%20Pipeline-1C3C3C)
 
@@ -101,7 +103,7 @@ For a deeper technical walkthrough, see [ARCHITECTURE.md](ARCHITECTURE.md).
 ## Run locally
 
 ```bash
-git clone https://github.com/chaitanya4595-afk/blood-work-analyzer.git
+git clone https://github.com/kcrokkam/blood-work-analyzer.git
 cd blood-work-analyzer
 uv sync --extra dev
 cp .env.example .env
